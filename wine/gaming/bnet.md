@@ -20,3 +20,9 @@ which at least was able to startup the login not frozen, but it was loading fore
 So, after doing that once, I swap back to the default(soda-9.0.1) and restart the app.
 From there it works like normal, most likely the other run created some files or 
 something.
+
+
+Another thing, I'm trying is to add it to Steam as non-steam game.
+So, just add the HOTS.exe as a non-steam game, specify the proton version and 
+go.  It will prompt you to reinstall bnet but that's fine, everything else
+works as expected.
