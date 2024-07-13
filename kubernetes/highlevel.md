@@ -1,23 +1,23 @@
 
 # Keywords
 
-* OCI(Open Container Initiative)
+* OCI(Open Container Initiative)  
   Implemented by both Podman and Docker.
 
-* CE(Container Engine)
+* CE(Container Engine)  
 
-* Load balancer
+* Load balancer  
   Used to route traffic to the correct location. 
   i.e. if you had a redundant container service up somewhere and the primary goes
   down, then traffic swaps to the secondary until the primary comes back up.
 
-* Kubectl
+* Kubectl  
   Tool you can install anywhere to talk to the Master of the Kubernetes cluster.
 
-* Kubelet
+* Kubelet  
   Runs ontop of Kube-proxy, used by the master to control the CE daemon.
 
-* Pod
+* Pod  
   Runs somewhere in the K8s cluster, smallest deployable unit in K8s, can
   contain one or more containers. Containers in a pod communicate via localhost
   versus container name DNS in docker-compose, so they appear as one big 
@@ -25,7 +25,7 @@
   K8s provides persistent volumes(automatically provisioned) instead of regular
   volumes.
 
-* Deployment/manifest file
+* Deployment/manifest file  
   Yaml similar to a docker-compose file.  It can describe one or more pods. 
   You use kubctl to 'apply' your manifest.  If you want to change the state of 
   your containers, i.e. increase replication, just update the manifest and
