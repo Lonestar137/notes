@@ -47,6 +47,22 @@
   - OS
   - Hardware
 
+# Podman and Kubernetes
+
+IF you don't have a Kubernetes cluster, you can still run Kubernetes manifest
+files using Podman!
+
+```bash
+# Bring it up
+podman kube play ./manifest.yml
+
+# Bring it down
+podman kube down ./manifest.yml
+```
+
+This is a great way to practice writing manifest files.
+
+
 # Bootstrapping
 
 
@@ -56,8 +72,6 @@
 - kubelet
 
 Install kubeadm and kubelet on each system.
-
-
 
 
 # Load balancing
@@ -115,8 +129,6 @@ kubectl delete pods _podman_name
 
 # Cliffnotes
 
-
-
 Setup basic node(Worker and Master)
 ```bash
 sudo apt install docker.io
@@ -164,8 +176,6 @@ sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
 ```
 
 
-
-
 # OFFLINE Installer builder
 
 ## Docs
@@ -190,16 +200,19 @@ mkdir ./k8s_offline_packages
 sudo yum install --downloadonly --downloaddir=./k8s_offline_packages -y kubelet kubeadm kubectl --disableexcludes=kubernetes
 
 
-# Install containerd
+# Get containerd
 wget https://github.com/containerd/containerd/releases/download/v1.7.19/containerd-1.7.19-linux-amd64.tar.gz
-tar Cxzvf /usr/local containerd-1.7.19-linux-amd64.tar.gz
-## Install service
-wget https://raw.githubusercontent.com/containerd/containerd/main/containerd.service # Save at /usr/local/lib/systemd/system/containerd.service
+# Get service file
+wget https://raw.githubusercontent.com/containerd/containerd/main/containerd.service # Will be saved to /usr/local/lib/systemd/system/containerd.service
 ```
 
 Move your bundle to the offline system.
 
 ```bash
+
+tar Cxzvf /usr/local containerd-1.7.19-linux-amd64.tar.gz
+# Move the service file to: /usr/local/lib/systemd/system/containerd.service
+
 cd ./k8s_offline_packages
 sudo rpm -ivh *.rpm # OR, try yum install -y *.rpm
 
@@ -208,8 +221,10 @@ rpm -qa | grep -E 'kube'
 
 # Firewall settings
 # IF firewalld is active, please ensure ports [6443 10250] are open or your cluster may not function correctly
-sudo firewall-cmd --permanent --add-port=6443/tcp
-sudo firewall-cmd --permanent --add-port=10250/tcp
+sudo firewall-cmd --permanent --add-port=6443/tcp # MASTER only
+sudo firewall-cmd --permanent --add-port=10250/tcp # ALL
+sudo firewall-cmd --add-masquerade --permanent # ALL
+# Maybe? sudo firewall-cmd --permanent --add-port=8472/udp # ALL
 sudo firewall-cmd --reload
 
 # Enable IP forwarding if it's not on
@@ -233,6 +248,7 @@ kubeadm init
 kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
 
 # Dont forget to set your admin.conf for your user after done.
+# or export KUBECONFIG=/etc/kubernetes/admin.conf
 ```
 
 
@@ -253,7 +269,7 @@ kube join ...
   Caused by having too many nameservers configured.  Google this. But,
   remove a few nameservers to fix <= 3 MAX nameservers.
 
-* Containers in Not-Ready state
+* Containers in Not-Ready state OR can't find CNI config on kubelet status
   You need to deploy container networking.
   ```bash
   kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
@@ -262,6 +278,7 @@ kube join ...
 * Cgroups issues
   * Cgroups setup issue
     Need to deploy with systemd init config.
+    `sudo cat /var/lib/kubelet/config.yaml`
 
     ```yaml
     # kubeadm-config.yaml
@@ -292,3 +309,106 @@ kube join ...
       # [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
       #   SystemdCgroup = true
       ```
+  * Containerd fails to find container hash or something
+    ```bash
+    # 1. Stop kubelet
+    systemctl stop kubelet
+    # 2. Stop containerd
+    # Remove the containerd state
+    rm -rf /var/lib/containerd
+    systemctl start kubelet
+    ```
+
+  * Port not avail on Master
+  https://docs.oracle.com/en/operating-systems/oracle-linux/kubernetes/kubernetes_install_upgrade.html#2.4-Setting-Up-a-Worker-Node
+
+    * Verify DNS is working(Most likely issue)
+      ```bash
+      kubectl run -it --rm --restart=Never busybox --image=busybox:1.28 -- nslookup kubernetes.default
+      ```
+
+      Should see something like the following output:
+      ```bash
+      Server:    10.96.0.10
+      Address 1: 10.96.0.10 kube-dns.kube-system.svc.cluster.local
+
+      Name:      kubernetes.default
+      Address 1: 10.96.0.1 kubernetes.default.svc.cluster.local
+      ```
+
+      Check port :53 DNS resolve
+      ```bash
+      $ sudo ss -tulpn | grep :53
+      udp   UNCONN 0      0                             127.0.0.54:53         0.0.0.0:*    users:(("systemd-resolve",pid=645,fd=16))
+      udp   UNCONN 0      0                          127.0.0.53%lo:53         0.0.0.0:*    users:(("systemd-resolve",pid=645,fd=14))
+      tcp   LISTEN 0      4096                          127.0.0.54:53         0.0.0.0:*    users:(("systemd-resolve",pid=645,fd=17))
+      tcp   LISTEN 0      4096                       127.0.0.53%lo:53         0.0.0.0:*    users:(("systemd-resolve",pid=645,fd=15))
+      ```
+
+      Should be running on ALL nodes:
+      `systemctl status systemd-resolved`
+
+
+
+    *Check ip tables for the port:
+      ```bash
+      sudo iptables -t nat -L -n -v | grep 30080
+      # 1    60 KUBE-EXT-URTTJQXLPCG6M7ZS  6    --  *      *       0.0.0.0/0            0.0.0.0/0            /* default/python-http-service */ tcp dpt:30080
+      ```
+
+    * Try disabling SELinux
+      ```bash
+      setenforce 0
+
+      sudo vi /etc/selinux/config
+      # Find the line that says "SELINUX=enforcing" and change it to:
+      # text
+      #SELINUX=Permissive
+      ```
+
+
+# Example deployment
+
+Manifest
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: python-http-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: python-http-server
+  template:
+    metadata:
+      labels:
+        app: python-http-server
+    spec:
+            #tolerations:
+            #- key: specialized
+            #operator: Equal
+            #value: "true"
+            #effect: NoSchedule
+      containers:
+      - name: python-http-server
+        image: python:3.9-slim
+        command: ["/bin/sh"]
+        args: ["-c", "echo '<h1>Hello from Python HTTP Server</h1>' > index.html && python -m http.server 8080"]
+        ports:
+        - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-service
+spec:
+  selector:
+    app: python-http-server
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+    nodePort: 30080
+  type: NodePort
+```
