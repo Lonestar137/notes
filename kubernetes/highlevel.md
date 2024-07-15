@@ -349,8 +349,14 @@ kube join ...
       `systemctl status systemd-resolved`
 
 
+    * Ensure Firewall is not blocking
+      Even if your'e using localhost, firewall may still block.
+      ```bash
+      sudo firewall-cmd --permanent --add-port=30080/tcp
+      sudo firewall-cmd --permanent --add-port=30080/udp
+      ```
 
-    *Check ip tables for the port:
+    * Check ip tables for the port:
       ```bash
       sudo iptables -t nat -L -n -v | grep 30080
       # 1    60 KUBE-EXT-URTTJQXLPCG6M7ZS  6    --  *      *       0.0.0.0/0            0.0.0.0/0            /* default/python-http-service */ tcp dpt:30080
