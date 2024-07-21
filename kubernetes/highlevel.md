@@ -150,6 +150,7 @@ sudo apt-mark hold kubelet kubeadm kubectl
 sudo systemctl enable --now kubelet
 
 # Install api key for your user
+sudo mkdir -p ~/.kube
 sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
 sudo chown $USER:$USER $HOME/.kube/config
 
@@ -158,6 +159,11 @@ sudo chown $USER:$USER $HOME/.kube/config
 Setup MASTER
 ```bash
 sudo kubeadm init
+
+# Setup cluster to use a DNS entry rather than IP.
+sudo kubeadm init --control-plane-endpoint=cluster.example.com
+# Add additional SubjectAlternativeNames(SAN's) to the server certificate.
+sudo kubeadm init --apiserver-cert-extra-sans=cluster.example.com,alternate.example.com
 ```
 
 Setup Worker
@@ -247,6 +253,9 @@ kubeadm init
 # Deploy networking(Super Important)
 kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
 
+# Monitor node health
+kubectl get pods -n kube-system
+
 # Dont forget to set your admin.conf for your user after done.
 # or export KUBECONFIG=/etc/kubernetes/admin.conf
 ```
@@ -259,6 +268,12 @@ On worker
 
 
 kube join ...
+```
+
+# Container runtime
+Defined by environment variable in:
+```
+/var/lib/kubelet/kubeadm-flags.env
 ```
 
 ## Issues I encountered
@@ -370,6 +385,29 @@ kube join ...
       # Find the line that says "SELINUX=enforcing" and change it to:
       # text
       #SELINUX=Permissive
+      ```
+    * Connection refused on port 6443
+
+      FIRST, verify that the kube-apiserver is running.
+      It might be crashing.
+      ```bash
+      ps -ef | grep apiserver
+      sudo crictl logs $(sudo crictl ps -q --name kube-apiserver)
+      kubectl get pods -n kube-system
+      ```
+
+      Try replacing .kube/config
+      ```bash
+      rm -rf ~/.kube
+      mkdir ~/.kube
+      sudo cp /etc/kubernetes/admin.conf ~/.kube/config
+      sudo chown -R $USER:$USER ~/.kube
+        
+      ```
+
+      Renew certs on the master and nodes.
+      ```bash
+      sudo kubeadm certs renew all
       ```
 
 
