@@ -103,6 +103,10 @@ spec:
 ```bash
 kubectl apply -f my-service.yaml
 kubectl get services # It's similar to doing 'podman ps' but across all your nodes!
+kubectl delete --ignore-not-found=true -f my-service.yaml
+
+# BTW, you can also apply a group of manifests
+kubectl delete --ignore-not-found=true -f my-manifests/
 ```
 
 # Commands
