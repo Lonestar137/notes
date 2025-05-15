@@ -26,3 +26,13 @@ Another thing, I'm trying is to add it to Steam as non-steam game.
 So, just add the HOTS.exe as a non-steam game, specify the proton version and 
 go.  It will prompt you to reinstall bnet but that's fine, everything else
 works as expected.
+
+
+## TLDR
+
+Issues starting the launcher usually boil down to a few things:
+
+- Wine/Proton version(Try latest or a stable version)
+- System installed dependencies, it has a lot of random packages it depends on.
+  Just ask an LLM for a list of packages for your distribution required for
+  Battle.net.
