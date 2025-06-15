@@ -33,6 +33,7 @@ works as expected.
 Issues starting the launcher usually boil down to a few things:
 
 - Wine/Proton version(Try latest or a stable version)
+  - Make sure to install `wine-staging`
 - System installed dependencies, it has a lot of random packages it depends on.
   Just ask an LLM for a list of packages for your distribution required for
   Battle.net.
